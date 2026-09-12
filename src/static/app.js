@@ -3,6 +3,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const loginForm = document.getElementById("login-form");
+  const logoutButton = document.getElementById("logout-button");
+  const authStatus = document.getElementById("auth-status");
+  let currentUser = null;
+
+  function updateAuthControls() {
+    const isAdmin = currentUser?.role === "administrator";
+    loginForm.classList.toggle("hidden", isAdmin);
+    logoutButton.classList.toggle("hidden", !isAdmin);
+    authStatus.textContent = isAdmin
+      ? `Logged in as ${currentUser.username}. Staff controls are enabled.`
+      : "Browsing as a public user.";
+    authStatus.className = isAdmin ? "success" : "info";
+  }
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -18,12 +32,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
 
-        const spotsLeft =
-          details.max_participants - details.participants.length;
+        const participantCount = details.participant_count ?? details.participants.length;
+        const spotsLeft = details.max_participants - participantCount;
 
         // Create participants HTML with delete icons instead of bullet points
         const participantsHTML =
-          details.participants.length > 0
+          currentUser?.role === "administrator" && details.participants.length > 0
             ? `<div class="participants-section">
               <h5>Participants:</h5>
               <ul class="participants-list">
@@ -35,7 +49,9 @@ document.addEventListener("DOMContentLoaded", () => {
                   .join("")}
               </ul>
             </div>`
-            : `<p><em>No participants yet</em></p>`;
+            : currentUser?.role === "administrator"
+              ? `<p><em>No participants yet</em></p>`
+              : "";
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
@@ -155,6 +171,40 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Initialize app
-  fetchActivities();
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const response = await fetch("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: document.getElementById("username").value,
+        password: document.getElementById("password").value,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      authStatus.textContent = result.detail || "Login failed";
+      authStatus.className = "error";
+      return;
+    }
+    currentUser = result;
+    loginForm.reset();
+    updateAuthControls();
+    fetchActivities();
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    await fetch("/auth/logout", { method: "POST" });
+    currentUser = null;
+    updateAuthControls();
+    fetchActivities();
+  });
+
+  fetch("/auth/me")
+    .then((response) => response.json())
+    .then((user) => {
+      currentUser = user.role === "administrator" ? user : null;
+      updateAuthControls();
+      fetchActivities();
+    });
 });

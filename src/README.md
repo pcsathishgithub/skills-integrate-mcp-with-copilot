@@ -6,6 +6,7 @@ A super simple FastAPI application that allows students to view and sign up for 
 
 - View all available extracurricular activities
 - Sign up for activities
+- Staff login with administrator-only participant management
 
 ## Getting Started
 
@@ -20,6 +21,15 @@ A super simple FastAPI application that allows students to view and sign up for 
    ```
    python app.py
    ```
+
+   Configure staff access before starting the application. Generate a password hash with:
+
+   ```
+   python -c "from app import hash_password; print(hash_password('change-me'))"
+   ```
+
+   Then set `ADMIN_USERS_JSON` to a JSON object containing usernames and generated hashes,
+   and set `AUTH_SECRET` to a long random value.
 
 3. Open your browser and go to:
    - API documentation: http://localhost:8000/docs
@@ -48,3 +58,6 @@ The application uses a simple data model with meaningful identifiers:
    - Grade level
 
 All data is stored in memory, which means data will be reset when the server restarts.
+
+Public users can browse activities and sign up. Participant details and unregister operations
+require an administrator session.
